@@ -15,7 +15,8 @@
   ],
   "dependencies": {
     "purescript-prelude": "^2.1.0",
-    "purescript-monoid": "^2.2.0"
+    "purescript-monoid": "^2.2.0",
+    "purescript-tailrec": "^2.0.1"
   },
   "devDependencies": {
     "purescript-psci-support": "^2.0.0"
