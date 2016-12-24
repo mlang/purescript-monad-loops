@@ -13,8 +13,8 @@ import Data.Monoid (class Monoid, mempty)
 import Data.Tuple (Tuple(Tuple))
 import Prelude ( class Applicative, class Monad
                , Unit
-               , append, const, flip, ifM, not, pure, unit
-               , (*>), (<$>), (<<<), (>>=)
+               , const, flip, ifM, not, pure, unit
+               , (*>), (<$>), (<<<), (<>), (>>=)
                )
 
 whileM :: forall a m. Monad m => m Boolean -> m a -> m (Array a)
@@ -23,7 +23,7 @@ whileM = whileM'
 whileM' :: forall a f m. (Monad m, Applicative f, Monoid (f a))
         => m Boolean -> m a -> m (f a)
 whileM' p f = ifM p
-  (f >>= \ x -> whileM' p f >>= pure <<< append (pure x))
+  (f >>= \ x -> whileM' p f >>= pure <<< (pure x <> _))
   (pure mempty)
 
 whileM_ :: forall a m. Monad m => m Boolean -> m a -> m Unit
@@ -34,7 +34,7 @@ untilM = untilM'
 
 untilM' :: forall a f m. (Monad m, Applicative f, Monoid (f a))
         => m a -> m Boolean -> m (f a)
-untilM' f p = f >>= \ x -> whileM' (not <$> p) f >>= pure <<< append (pure x)
+untilM' f p = f >>= \ x -> whileM' (not <$> p) f >>= pure <<< (pure x <> _)
 
 untilM_ :: forall a m. Monad m => m a -> m Boolean -> m Unit
 untilM_ f p = f *> whileM_ p f
@@ -66,7 +66,7 @@ whileJust' :: forall a b f m. (Monad m, Applicative f, Monoid (f b))
            => m (Maybe a) -> (a -> m b) -> m (f b)
 whileJust' p f =
   p >>= maybe (pure mempty)
-              (\ v -> f v >>= \ x -> whileJust' p f >>= pure <<< append (pure x))
+              (\ v -> f v >>= \ x -> whileJust' p f >>= pure <<< (pure x <> _))
 
 -- | As long as the supplied "Maybe" expression returns "Just _", the loop
 -- | body will be called and passed the value contained in the 'Just'.  Results
@@ -106,7 +106,7 @@ unfoldrM' :: forall a b f m. (Monad m, Applicative f, Monoid (f b))
           => (a -> m (Maybe (Tuple b a))) -> a -> m (f b)
 unfoldrM' f = go where
   go z = f z >>= maybe (pure mempty)
-                       (\ (Tuple x z') -> go z' >>= pure <<< append (pure x))
+                       (\ (Tuple x z') -> go z' >>= pure <<< (pure x <> _))
 
 -- | short-circuit 'and' for monadic boolean values.
 andM :: forall m. (Monad m) => List (m Boolean) -> m Boolean
