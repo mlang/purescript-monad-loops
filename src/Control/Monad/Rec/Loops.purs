@@ -77,6 +77,22 @@ untilJust :: forall a m. MonadRec m => m (Maybe a) -> m a
 untilJust m =
   tailRecM (const $ m >>= maybe (pure $ Loop unit) (pure <<< Done)) unit
 
+-- | The supplied Maybe expression will be repeatedly called until it
+-- | returns Nothing.  All values returned are collected into an array.
+unfoldM :: forall a m. MonadRec m => m (Maybe a) -> m (Array a)
+unfoldM = unfoldM'
+
+-- | The supplied Maybe expression will be repeatedly called until it
+-- | returns Nothing.  All values returned are collected into an Applicative Monoid.
+unfoldM' :: forall a f m. (MonadRec m, Applicative f, Monoid (f a))
+         => m (Maybe a) -> m (f a)
+unfoldM' = flip whileJust' pure
+
+-- | The supplied Maybe expression will be repeatedly called until it
+-- | returns Nothing.  All values returned are discarded.
+unfoldM_ :: forall a m. MonadRec m => m (Maybe a) -> m Unit
+unfoldM_ = flip whileJust_ pure
+
 -------------------------------------------------------------------------------
 
 collect :: forall a b f m. (MonadRec m, Applicative f, Semigroup (f a))

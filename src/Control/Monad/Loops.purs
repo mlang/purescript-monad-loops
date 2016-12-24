@@ -9,7 +9,7 @@ import Data.Maybe (Maybe, maybe)
 import Data.Monoid (class Monoid, mempty)
 import Prelude ( class Applicative, class Monad
                , Unit
-               , append, const, ifM, not, pure, unit
+               , append, const, flip, ifM, not, pure, unit
                , (*>), (<$>), (<<<), (>>=)
                )
 
@@ -74,3 +74,19 @@ whileJust_ p f = p >>= maybe (pure unit) (\ v -> f v *> whileJust_ p f)
 -- | value.  Returns that value.
 untilJust :: forall a m. Monad m => m (Maybe a) -> m a
 untilJust m = m >>= maybe (untilJust m) pure
+
+-- | The supplied Maybe expression will be repeatedly called until it
+-- | returns Nothing.  All values returned are collected into an array.
+unfoldM :: forall a m. Monad m => m (Maybe a) -> m (Array a)
+unfoldM = unfoldM'
+
+-- | The supplied Maybe expression will be repeatedly called until it
+-- | returns Nothing.  All values returned are collected into an Applicative Monoid.
+unfoldM' :: forall a f m. (Monad m, Applicative f, Monoid (f a))
+         => m (Maybe a) -> m (f a)
+unfoldM' = flip whileJust' pure
+
+-- | The supplied Maybe expression will be repeatedly called until it
+-- | returns Nothing.  All values returned are discarded.
+unfoldM_ :: forall a m. Monad m => m (Maybe a) -> m Unit
+unfoldM_ = flip whileJust_ pure
