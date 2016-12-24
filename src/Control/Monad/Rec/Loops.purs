@@ -3,11 +3,13 @@ module Control.Monad.Rec.Loops (
   untilM, untilM', untilM_,
   iterateWhile, iterateUntil, iterateUntilM,
   whileJust, whileJust', whileJust_, untilJust,
-  unfoldM, unfoldM', unfoldM_, unfoldrM, unfoldrM'
+  unfoldM, unfoldM', unfoldM_, unfoldrM, unfoldrM',
+  andM, orM, anyPM, allPM, anyM, allM
 ) where
 
 import Control.Monad.Rec.Class (class MonadRec, Step(Done, Loop), tailRecM, tailRecM2)
 import Data.Functor (voidLeft)
+import Data.List (List(Nil), (:))
 import Data.Maybe (Maybe, maybe)
 import Data.Monoid (class Monoid, mempty)
 import Data.Tuple (Tuple(Tuple))
@@ -76,8 +78,7 @@ whileJust_ p f =
 -- | Run the supplied "Maybe" computation repeatedly until it returns a
 -- | value.  Returns that value.
 untilJust :: forall a m. MonadRec m => m (Maybe a) -> m a
-untilJust m =
-  tailRecM (const $ m >>= maybe (pure $ Loop unit) (pure <<< Done)) unit
+untilJust m = tailRecM (const $ m >>= maybe (loop unit) done) unit
 
 -- | The supplied Maybe expression will be repeatedly called until it
 -- | returns Nothing.  All values returned are collected into an array.
@@ -106,13 +107,56 @@ unfoldrM' :: forall a b f m. (MonadRec m, Applicative f, Monoid (f b))
           => (a -> m (Maybe (Tuple b a))) -> a -> m (f b)
 unfoldrM' f = tailRecM2 go mempty where
   go xs z = f z >>= maybe (done xs)
-                          (\ (Tuple x z') -> pure $ Loop { a: xs <> pure x, b: z'})
+                          (\ (Tuple x z') -> loop { a: xs <> pure x, b: z'})
+
+-- | short-circuit 'and' for monadic boolean values.
+andM :: forall m. (MonadRec m) => List (m Boolean) -> m Boolean
+andM = tailRecM go where
+  go Nil    = done true
+  go (p:ps) = ifM p (loop ps) (done false)
+
+-- | short-circuit 'or' for values of type Monad m => m Bool
+orM :: forall m. MonadRec m => List (m Boolean) -> m Boolean
+orM = tailRecM go where
+  go Nil    = done false
+  go (p:ps) = ifM p (done true) (loop ps)
+
+-- | short-circuit 'any' with a list of \"monadic predicates\".  Tests the
+-- | value presented against each predicate in turn until one passes, then
+-- | returns True without any further processing.  If none passes, returns False.
+anyPM :: forall m a. MonadRec m => List (a -> m Boolean) -> (a -> m Boolean)
+anyPM mps x = tailRecM go mps where
+  go Nil    = done false
+  go (p:ps) = ifM (p x) (done true) (loop ps)
+
+-- | short-circuit 'all' with a list of \"monadic predicates\".  Tests the value
+-- | presented against each predicate in turn until one fails, then returns False.
+-- | if none fail, returns True.
+allPM :: forall a m. MonadRec m => List (a -> m Boolean) -> (a -> m Boolean)
+allPM mps x = tailRecM go mps where
+  go Nil    = done true
+  go (p:ps) = ifM (p x) (loop ps) (done false)
+
+-- | short-circuit 'any' with a \"monadic predicate\".
+anyM :: forall a m. MonadRec m => (a -> m Boolean) -> List a -> m Boolean
+anyM p = tailRecM go where
+  go Nil    = done false
+  go (x:xs) = ifM (p x) (done true) (loop xs)
+
+-- | short-circuit 'all' with a \"monadic predicate\".
+allM :: forall a m. MonadRec m => (a -> m Boolean) -> List a -> m Boolean
+allM p = tailRecM go where
+  go Nil    = done true
+  go (x:xs) = ifM (p x) (loop xs) (done false)
 
 -------------------------------------------------------------------------------
 
 collect :: forall a b f m. (MonadRec m, Applicative f, Semigroup (f a))
         => m a -> f a -> m (Step (f a) b)
 collect f xs = f >>= pure <<< Loop <<< append xs <<< pure
+
+loop :: forall a b m. MonadRec m => a -> m (Step a b)
+loop = pure <<< Loop
 
 done :: forall a b m. MonadRec m => b -> m (Step a b)
 done = pure <<< Done

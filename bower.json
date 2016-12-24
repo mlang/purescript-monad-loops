@@ -18,7 +18,8 @@
     "purescript-monoid": "^2.2.0",
     "purescript-tailrec": "^2.0.1",
     "purescript-maybe": "^2.0.1",
-    "purescript-tuples": "^3.0.0"
+    "purescript-tuples": "^3.0.0",
+    "purescript-lists": "^3.2.2"
   },
   "devDependencies": {
     "purescript-psci-support": "^2.0.0"

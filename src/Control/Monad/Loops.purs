@@ -3,9 +3,11 @@ module Control.Monad.Loops (
   untilM, untilM', untilM_,
   iterateWhile, iterateUntil, iterateUntilM,
   whileJust, whileJust', whileJust_, untilJust,
-  unfoldM, unfoldM', unfoldM_, unfoldrM, unfoldrM'
+  unfoldM, unfoldM', unfoldM_, unfoldrM, unfoldrM',
+  andM, orM, anyPM, allPM, anyM, allM
 ) where
 
+import Data.List (List(Nil), (:))
 import Data.Maybe (Maybe, maybe)
 import Data.Monoid (class Monoid, mempty)
 import Data.Tuple (Tuple(Tuple))
@@ -105,3 +107,37 @@ unfoldrM' :: forall a b f m. (Monad m, Applicative f, Monoid (f b))
 unfoldrM' f = go where
   go z = f z >>= maybe (pure mempty)
                        (\ (Tuple x z') -> go z' >>= pure <<< append (pure x))
+
+-- | short-circuit 'and' for monadic boolean values.
+andM :: forall m. (Monad m) => List (m Boolean) -> m Boolean
+andM Nil    = pure true
+andM (p:ps) = ifM p (andM ps) (pure false)
+
+-- | short-circuit 'or' for values of type Monad m => m Bool
+orM :: forall m. Monad m => List (m Boolean) -> m Boolean
+orM Nil    = pure false
+orM (p:ps) = ifM p (pure true) (orM ps)
+
+-- | short-circuit 'any' with a list of \"monadic predicates\".  Tests the
+-- | value presented against each predicate in turn until one passes, then
+-- | returns True without any further processing.  If none passes, returns False.
+anyPM :: forall m a. Monad m => List (a -> m Boolean) -> (a -> m Boolean)
+anyPM Nil    _ = pure false
+anyPM (p:ps) x = ifM (p x) (pure true) (anyPM ps x)
+
+-- | short-circuit 'all' with a list of \"monadic predicates\".  Tests the value
+-- | presented against each predicate in turn until one fails, then returns False.
+-- | if none fail, returns True.
+allPM :: forall m a. Monad m => List (a -> m Boolean) -> (a -> m Boolean)
+allPM Nil    _ = pure true
+allPM (p:ps) x = ifM (p x) (allPM ps x) (pure false)
+
+-- | short-circuit 'any' with a \"monadic predicate\".
+anyM :: forall a m. Monad m => (a -> m Boolean) -> List a -> m Boolean
+anyM _ Nil    = pure false
+anyM p (x:xs) = ifM (p x) (pure true) (anyM p xs)
+
+-- | short-circuit 'all' with a \"monadic predicate\".
+allM :: forall a m. Monad m => (a -> m Boolean) -> List a -> m Boolean
+allM _ Nil    = pure true
+allM p (x:xs) = ifM (p x) (allM p xs) (pure false)
