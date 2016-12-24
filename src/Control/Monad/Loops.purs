@@ -2,11 +2,13 @@ module Control.Monad.Loops (
   whileM, whileM', whileM_,
   untilM, untilM', untilM_,
   iterateWhile, iterateUntil, iterateUntilM,
-  whileJust, whileJust', whileJust_, untilJust
+  whileJust, whileJust', whileJust_, untilJust,
+  unfoldM, unfoldM', unfoldM_, unfoldrM, unfoldrM'
 ) where
 
 import Data.Maybe (Maybe, maybe)
 import Data.Monoid (class Monoid, mempty)
+import Data.Tuple (Tuple(Tuple))
 import Prelude ( class Applicative, class Monad
                , Unit
                , append, const, flip, ifM, not, pure, unit
@@ -90,3 +92,16 @@ unfoldM' = flip whileJust' pure
 -- | returns Nothing.  All values returned are discarded.
 unfoldM_ :: forall a m. Monad m => m (Maybe a) -> m Unit
 unfoldM_ = flip whileJust_ pure
+
+unfoldrM :: forall a b m. Monad m
+         => (a -> m (Maybe (Tuple b a))) -> a -> m (Array b)
+unfoldrM = unfoldrM'
+
+-- | See 'Data.List.unfoldr'.  This is a monad-friendly version of that, with a
+-- | twist.  Rather than returning a list, it returns any MonadPlus type of your
+-- | choice.
+unfoldrM' :: forall a b f m. (Monad m, Applicative f, Monoid (f b))
+          => (a -> m (Maybe (Tuple b a))) -> a -> m (f b)
+unfoldrM' f = go where
+  go z = f z >>= maybe (pure mempty)
+                       (\ (Tuple x z') -> go z' >>= pure <<< append (pure x))

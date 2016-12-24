@@ -2,17 +2,19 @@ module Control.Monad.Rec.Loops (
   whileM, whileM', whileM_,
   untilM, untilM', untilM_,
   iterateWhile, iterateUntil, iterateUntilM,
-  whileJust, whileJust', whileJust_, untilJust
+  whileJust, whileJust', whileJust_, untilJust,
+  unfoldM, unfoldM', unfoldM_, unfoldrM, unfoldrM'
 ) where
 
-import Control.Monad.Rec.Class (class MonadRec, Step(Done, Loop), tailRecM)
+import Control.Monad.Rec.Class (class MonadRec, Step(Done, Loop), tailRecM, tailRecM2)
 import Data.Functor (voidLeft)
 import Data.Maybe (Maybe, maybe)
 import Data.Monoid (class Monoid, mempty)
+import Data.Tuple (Tuple(Tuple))
 import Prelude ( class Applicative, class Semigroup
                , Unit
                , append, const, flip, ifM, not, pure, unit
-               , ($), ($>), (*>), (<$>), (<*>), (<<<), (>>=)
+               , ($), ($>), (*>), (<$>), (<*>), (<<<), (<>), (>>=)
                )
 
 whileM :: forall a m. MonadRec m => m Boolean -> m a -> m (Array a)
@@ -92,6 +94,19 @@ unfoldM' = flip whileJust' pure
 -- | returns Nothing.  All values returned are discarded.
 unfoldM_ :: forall a m. MonadRec m => m (Maybe a) -> m Unit
 unfoldM_ = flip whileJust_ pure
+
+unfoldrM :: forall a b m. MonadRec m
+         => (a -> m (Maybe (Tuple b a))) -> a -> m (Array b)
+unfoldrM = unfoldrM'
+
+-- | See 'Data.List.unfoldr'.  This is a monad-friendly version of that, with a
+-- | twist.  Rather than returning a list, it returns any MonadPlus type of your
+-- | choice.
+unfoldrM' :: forall a b f m. (MonadRec m, Applicative f, Monoid (f b))
+          => (a -> m (Maybe (Tuple b a))) -> a -> m (f b)
+unfoldrM' f = tailRecM2 go mempty where
+  go xs z = f z >>= maybe (done xs)
+                          (\ (Tuple x z') -> pure $ Loop { a: xs <> pure x, b: z'})
 
 -------------------------------------------------------------------------------
 
