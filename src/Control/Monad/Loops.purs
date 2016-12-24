@@ -1,9 +1,11 @@
 module Control.Monad.Loops (
   whileM, whileM', whileM_,
   untilM, untilM', untilM_,
-  iterateWhile, iterateUntil, iterateUntilM
+  iterateWhile, iterateUntil, iterateUntilM,
+  whileJust, whileJust', whileJust_, untilJust
 ) where
 
+import Data.Maybe (Maybe, maybe)
 import Data.Monoid (class Monoid, mempty)
 import Prelude ( class Applicative, class Monad
                , Unit
@@ -46,3 +48,29 @@ iterateUntilM p f v = if p v then pure v else f v >>= iterateUntilM p f
 -- and return that result (discarding all others).
 iterateUntil :: forall a m. Monad m => (a -> Boolean) -> m a -> m a
 iterateUntil p x = x >>= iterateUntilM p (const x)
+
+-- | As long as the supplied "Maybe" expression returns "Just _", the loop
+-- body will be called and passed the value contained in the 'Just'.  Results
+-- are collected into an array.
+whileJust :: forall a b m. Monad m => m (Maybe a) -> (a -> m b) -> m (Array b)
+whileJust = whileJust'
+
+-- | As long as the supplied "Maybe" expression returns "Just _", the loop
+-- body will be called and passed the value contained in the 'Just'.  Results
+-- are collected into an arbitrary MonadPlus container.
+whileJust' :: forall a b f m. (Monad m, Applicative f, Monoid (f b))
+           => m (Maybe a) -> (a -> m b) -> m (f b)
+whileJust' p f =
+  p >>= maybe (pure mempty)
+              (\ v -> f v >>= \ x -> whileJust' p f >>= pure <<< append (pure x))
+
+-- | As long as the supplied "Maybe" expression returns "Just _", the loop
+-- body will be called and passed the value contained in the 'Just'.  Results
+-- are discarded.
+whileJust_ :: forall a b m. Monad m => m (Maybe a) -> (a -> m b) -> m Unit
+whileJust_ p f = p >>= maybe (pure unit) (\ v -> f v *> whileJust_ p f)
+
+-- | Run the supplied "Maybe" computation repeatedly until it returns a
+-- value.  Returns that value.
+untilJust :: forall a m. Monad m => m (Maybe a) -> m a
+untilJust m = m >>= maybe (untilJust m) pure
