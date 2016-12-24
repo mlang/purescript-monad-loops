@@ -11,7 +11,7 @@ import Data.Maybe (Maybe, maybe)
 import Data.Monoid (class Monoid, mempty)
 import Prelude ( class Applicative, class Semigroup
                , Unit
-               , append, const, ifM, not, pure, unit
+               , append, const, flip, ifM, not, pure, unit
                , ($), ($>), (*>), (<$>), (<*>), (<<<), (>>=)
                )
 
@@ -61,18 +61,21 @@ whileJust = whileJust'
 -- are collected into an arbitrary MonadPlus container.
 whileJust' :: forall a b f m. (MonadRec m, Applicative f, Monoid (f b))
            => m (Maybe a) -> (a -> m b) -> m (f b)
-whileJust' p f = tailRecM (\ acc -> p >>= maybe (done acc) (\ v -> collect (f v) acc)) mempty
+whileJust' p f =
+  tailRecM (\ xs -> p >>= maybe (done xs) (flip collect xs <<< f)) mempty
 
 -- | As long as the supplied "Maybe" expression returns "Just _", the loop
 -- body will be called and passed the value contained in the 'Just'.  Results
 -- are discarded.
 whileJust_ :: forall a b m. MonadRec m => m (Maybe a) -> (a -> m b) -> m Unit
-whileJust_ p f = tailRecM (const $ p >>= maybe (done unit) (\ v -> f v $> Loop unit)) unit
+whileJust_ p f =
+  tailRecM (const $ p >>= maybe (done unit) (\ v -> f v $> Loop unit)) unit
 
 -- | Run the supplied "Maybe" computation repeatedly until it returns a
 -- value.  Returns that value.
 untilJust :: forall a m. MonadRec m => m (Maybe a) -> m a
-untilJust m = tailRecM (const $ m >>= maybe (pure $ Loop unit) (pure <<< Done)) unit
+untilJust m =
+  tailRecM (const $ m >>= maybe (pure $ Loop unit) (pure <<< Done)) unit
 
 -------------------------------------------------------------------------------
 
