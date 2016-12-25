@@ -17,25 +17,44 @@ import Prelude ( class Applicative, class Monad
                , (*>), (<$>), (<<<), (<>), (>>=)
                )
 
+-- | Execute an action repeatedly as long as the given boolean expression
+-- | returns `true`.  The condition is evaluated before the loop body.
+-- | Collects the results into an `Array`.
+-- | See `whileM'` for a generalized `Applicative` `Monoid` result.
 whileM :: forall a m. Monad m => m Boolean -> m a -> m (Array a)
 whileM = whileM'
 
+-- | Execute an action repeatedly as long as the given boolean expression
+-- | returns `true`.  The condition is evaluated before the loop body.
+-- | Collects the results into an arbitrary `Applicative` `Monoid` value.
 whileM' :: forall a f m. (Monad m, Applicative f, Monoid (f a))
         => m Boolean -> m a -> m (f a)
 whileM' p f = ifM p
   (f >>= \ x -> whileM' p f >>= pure <<< (pure x <> _))
   (pure mempty)
 
+-- | Execute an action repeatedly as long as the given boolean expression
+-- | returns `true`.  The condition is evaluated before the loop body.
+-- | Results are ignored.
 whileM_ :: forall a m. Monad m => m Boolean -> m a -> m Unit
 whileM_ p f = ifM p (f *> whileM_ p f) (pure unit)
 
+-- | Execute an action repeatedly until the condition expression returns `true`.
+-- | The condition is evaluated after the loop body.
+-- | Collects results into an `Array`.
 untilM :: forall a m. Monad m => m a -> m Boolean -> m (Array a)
 untilM = untilM'
 
-untilM' :: forall a f m. (Monad m, Applicative f, Monoid (f a))
+-- | Execute an action repeatedly until the condition expression returns `true`.
+-- | The condition is evaluated after the loop body.
+-- | Collects results into an arbitrary `Applicative` `Monoid` value.
+untilM' :: forall m f a. (Monad m, Applicative f, Monoid (f a))
         => m a -> m Boolean -> m (f a)
 untilM' f p = f >>= \ x -> whileM' (not <$> p) f >>= pure <<< (pure x <> _)
 
+-- | Execute an action repeatedly until the condition expression returns `true`.
+-- | The condition is evaluated after the loop body.
+-- | Ignores the results of loop body execution.
 untilM_ :: forall a m. Monad m => m a -> m Boolean -> m Unit
 untilM_ f p = f *> whileM_ p f
 

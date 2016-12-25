@@ -16,7 +16,7 @@ import Data.Tuple (Tuple(Tuple))
 import Prelude ( class Apply, class Applicative, class Bind, class Semigroup
                , Unit
                , bind, const, flip, ifM, not, pure, unit
-               , ($), ($>), (*>), (<$>), (<*>), (<<<), (<>), (>>=)
+               , ($), ($>), (*>), (<$>), (<<<), (<>), (>>=)
                )
 
 whileM :: forall a m. MonadRec m => m Boolean -> m a -> m (Array a)
