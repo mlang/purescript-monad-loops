@@ -7,12 +7,13 @@ module Control.Monad.Rec.Loops (
   andM, orM, anyPM, allPM, anyM, allM
 ) where
 
+import Control.Apply (lift2)
 import Control.Monad.Rec.Class (class MonadRec, Step(Done, Loop), tailRecM, tailRecM2)
 import Data.List (List(Nil), (:))
 import Data.Maybe (Maybe, maybe)
 import Data.Monoid (class Monoid, mempty)
 import Data.Tuple (Tuple(Tuple))
-import Prelude ( class Applicative, class Semigroup
+import Prelude ( class Apply, class Applicative, class Bind, class Semigroup
                , Unit
                , bind, const, flip, ifM, not, pure, unit
                , ($), ($>), (*>), (<$>), (<*>), (<<<), (<>), (>>=)
@@ -23,20 +24,20 @@ whileM = whileM'
 
 whileM' :: forall a f m. (MonadRec m, Applicative f, Monoid (f a))
         => m Boolean -> m a -> m (f a)
-whileM' p f = tailRecM (ifM p <$> collect f <*> done) mempty
+whileM' p f = tailRecM (liftIfM p (_ <+> f) done) mempty
 
 whileM_ :: forall a m. MonadRec m => m Boolean -> m a -> m Unit
-whileM_ p f = tailRecM (ifM p <$> (f $> _) <<< Loop <*> done) unit
+whileM_ p f = tailRecM (liftIfM p ((f $> _) <<< Loop) done) unit
 
 untilM :: forall a m. MonadRec m => m a -> m Boolean -> m (Array a)
 untilM = untilM'
 
 untilM' :: forall a f m. (MonadRec m, Applicative f, Semigroup (f a))
          => m a -> m Boolean -> m (f a)
-untilM' f p = f >>= tailRecM (ifM p <$> done <*> collect f) <<< pure
+untilM' f p = f >>= tailRecM (liftIfM p done (_ <+> f)) <<< pure
 
 untilM_ :: forall a m. MonadRec m => m a -> m Boolean -> m Unit
-untilM_ f p = f *> tailRecM (ifM p <$> done <*> (f $> _) <<< Loop) unit
+untilM_ f p = f *> tailRecM (liftIfM p done $ (f $> _) <<< Loop) unit
 
 -- | Execute an action repeatedly until its result fails to satisfy a predicate,
 -- | and return that result (discarding all others).
@@ -46,7 +47,7 @@ iterateWhile p = iterateUntil $ not <<< p
 -- | Yields the result of applying f until p holds.
 iterateUntilM :: forall a m. MonadRec m
               => (a -> Boolean) -> (a -> m a) -> a -> m a
-iterateUntilM p f = tailRecM (\ v -> if p v then done v else Loop <$> f v)
+iterateUntilM p f = tailRecM \ v -> if p v then done v else Loop <$> f v
 
 -- | Execute an action repeatedly until its result satisfies a predicate,
 -- | and return that result (discarding all others).
@@ -64,8 +65,8 @@ whileJust = whileJust'
 -- | are collected into an arbitrary MonadPlus container.
 whileJust' :: forall a b f m. (MonadRec m, Applicative f, Monoid (f b))
            => m (Maybe a) -> (a -> m b) -> m (f b)
-whileJust' p f =
-  tailRecM (\ xs -> p >>= maybe (done xs) (flip collect xs <<< f)) mempty
+whileJust' p f = tailRecM go mempty where
+  go xs = p >>= maybe (done xs) ((xs <+> _) <<< f)
 
 -- | As long as the supplied "Maybe" expression returns "Just _", the loop
 -- | body will be called and passed the value contained in the 'Just'.  Results
@@ -150,12 +151,20 @@ allM p = tailRecM go where
 
 -------------------------------------------------------------------------------
 
-collect :: forall a b f m. (MonadRec m, Applicative f, Semigroup (f a))
-        => m a -> f a -> m (Step (f a) b)
-collect f xs = f >>= loop <<< (xs <> _) <<< pure
+liftIfM :: forall m f a. (Apply f, Bind m)
+        => m Boolean -> f (m a) -> f (m a) -> f (m a)
+liftIfM = lift2 <<< ifM
 
-loop :: forall a b m. MonadRec m => a -> m (Step a b)
+-- | Append the result of running a monadic computation to an applicative semigroup
+-- | and return it as a loop continuation for `tailRecM`.
+appendM :: forall m f a b. (MonadRec m, Applicative f, Semigroup (f a))
+        => f a -> m a -> m (Step (f a) b)
+appendM xs f = f >>= loop <<< (xs <> _) <<< pure
+
+infixr 5 appendM as <+>
+
+loop :: forall m a b. MonadRec m => a -> m (Step a b)
 loop = pure <<< Loop
 
-done :: forall a b m. MonadRec m => b -> m (Step a b)
+done :: forall m a b. MonadRec m => b -> m (Step a b)
 done = pure <<< Done
