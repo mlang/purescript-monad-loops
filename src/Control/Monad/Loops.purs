@@ -14,20 +14,20 @@ import Data.Tuple (Tuple(Tuple))
 import Prelude ( class Applicative, class Monad
                , Unit
                , const, flip, ifM, not, pure, unit
-               , (*>), (<$>), (<<<), (<>), (>>=)
+               , ($), (*>), (<$>), (<<<), (<>), (>>=)
                )
 
 -- | Execute an action repeatedly as long as the given boolean expression
 -- | returns `true`.  The condition is evaluated before the loop body.
 -- | Collects the results into an `Array`.
--- | See `whileM'` for a generalized `Applicative` `Monoid` result.
+-- | See `whileM'` for a generalized `Applicative` monoidal result.
 whileM :: forall a m. Monad m => m Boolean -> m a -> m (Array a)
 whileM = whileM'
 
 -- | Execute an action repeatedly as long as the given boolean expression
 -- | returns `true`.  The condition is evaluated before the loop body.
--- | Collects the results into an arbitrary `Applicative` `Monoid` value.
-whileM' :: forall a f m. (Monad m, Applicative f, Monoid (f a))
+-- | Collects the results into an arbitrary `Applicative` monoidal structure.
+whileM' :: forall m f a. (Monad m, Applicative f, Monoid (f a))
         => m Boolean -> m a -> m (f a)
 whileM' p f = ifM p
   (f >>= \ x -> whileM' p f >>= pure <<< (pure x <> _))
@@ -47,7 +47,7 @@ untilM = untilM'
 
 -- | Execute an action repeatedly until the condition expression returns `true`.
 -- | The condition is evaluated after the loop body.
--- | Collects results into an arbitrary `Applicative` `Monoid` value.
+-- | Collects results into an arbitrary `Applicative` monoidal structure.
 untilM' :: forall m f a. (Monad m, Applicative f, Monoid (f a))
         => m a -> m Boolean -> m (f a)
 untilM' f p = f >>= \ x -> whileM' (not <$> p) f >>= pure <<< (pure x <> _)
@@ -55,22 +55,22 @@ untilM' f p = f >>= \ x -> whileM' (not <$> p) f >>= pure <<< (pure x <> _)
 -- | Execute an action repeatedly until the condition expression returns `true`.
 -- | The condition is evaluated after the loop body.
 -- | Ignores the results of loop body execution.
-untilM_ :: forall a m. Monad m => m a -> m Boolean -> m Unit
+untilM_ :: forall m a. Monad m => m a -> m Boolean -> m Unit
 untilM_ f p = f *> whileM_ p f
 
 -- | Execute an action repeatedly until its result fails to satisfy a predicate,
 -- | and return that result (discarding all others).
 iterateWhile :: forall a m. Monad m => (a -> Boolean) -> m a -> m a
-iterateWhile p = iterateUntil (not <<< p)
-
--- | Yields the result of applying f until p holds.
-iterateUntilM :: forall a m. Monad m => (a -> Boolean) -> (a -> m a) -> a -> m a
-iterateUntilM p f v = if p v then pure v else f v >>= iterateUntilM p f
+iterateWhile p = iterateUntil $ not p
 
 -- | Execute an action repeatedly until its result satisfies a predicate,
 -- | and return that result (discarding all others).
 iterateUntil :: forall a m. Monad m => (a -> Boolean) -> m a -> m a
 iterateUntil p x = x >>= iterateUntilM p (const x)
+
+-- | Yields the result of applying `f` until `p` holds.
+iterateUntilM :: forall m a. Monad m => (a -> Boolean) -> (a -> m a) -> a -> m a
+iterateUntilM p f v = if p v then pure v else f v >>= iterateUntilM p f
 
 -- | As long as the supplied Maybe expression returns Just, the loop
 -- | body will be called and passed the value contained in the 'Just'.  Results
@@ -78,10 +78,10 @@ iterateUntil p x = x >>= iterateUntilM p (const x)
 whileJust :: forall a b m. Monad m => m (Maybe a) -> (a -> m b) -> m (Array b)
 whileJust = whileJust'
 
--- | As long as the supplied "Maybe" expression returns "Just _", the loop
--- | body will be called and passed the value contained in the 'Just'.  Results
--- | are collected into an arbitrary MonadPlus container.
-whileJust' :: forall a b f m. (Monad m, Applicative f, Monoid (f b))
+-- | As long as the supplied `Maybe` expression returns `Just`, the loop
+-- | body will be called and passed the value contained in the `Just`.
+-- | Results are collected into an arbitrary `Applicative` monoidal structure.
+whileJust' :: forall m a f b. (Monad m, Applicative f, Monoid (f b))
            => m (Maybe a) -> (a -> m b) -> m (f b)
 whileJust' p f =
   p >>= maybe (pure mempty)
@@ -99,13 +99,14 @@ untilJust :: forall a m. Monad m => m (Maybe a) -> m a
 untilJust m = m >>= maybe (untilJust m) pure
 
 -- | The supplied Maybe expression will be repeatedly called until it
--- | returns Nothing.  All values returned are collected into an array.
+-- | returns `Nothing`.  All values returned are collected into an `Array`.
 unfoldM :: forall a m. Monad m => m (Maybe a) -> m (Array a)
 unfoldM = unfoldM'
 
--- | The supplied Maybe expression will be repeatedly called until it
--- | returns Nothing.  All values returned are collected into an Applicative Monoid.
-unfoldM' :: forall a f m. (Monad m, Applicative f, Monoid (f a))
+-- | The supplied `Maybe` expression will be repeatedly called until it
+-- | returns `Nothing`.
+-- | All `Just` values are collected into an `Applicative` monoidal structure.
+unfoldM' :: forall m f a. (Monad m, Applicative f, Monoid (f a))
          => m (Maybe a) -> m (f a)
 unfoldM' = flip whileJust' pure
 

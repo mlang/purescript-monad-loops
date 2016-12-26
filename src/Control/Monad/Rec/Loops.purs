@@ -42,7 +42,7 @@ untilM_ f p = f *> tailRecM (liftIfM p done $ (f $> _) <<< Loop) unit
 -- | Execute an action repeatedly until its result fails to satisfy a predicate,
 -- | and return that result (discarding all others).
 iterateWhile :: forall a m. MonadRec m => (a -> Boolean) -> m a -> m a
-iterateWhile p = iterateUntil $ not <<< p
+iterateWhile p = iterateUntil $ not p
 
 -- | Yields the result of applying f until p holds.
 iterateUntilM :: forall a m. MonadRec m
