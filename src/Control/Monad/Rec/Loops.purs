@@ -19,23 +19,42 @@ import Prelude ( class Apply, class Applicative, class Bind, class Semigroup
                , ($), ($>), (*>), (<$>), (<<<), (<>), (>>=)
                )
 
+-- | Execute an action repeatedly as long as the given boolean expression
+-- | returns `true`.  The condition is evaluated before the loop body.
+-- | Collects the results into an `Array`.
+-- | See `whileM'` for a generalized `Applicative` monoidal result.
 whileM :: forall a m. MonadRec m => m Boolean -> m a -> m (Array a)
 whileM = whileM'
 
+-- | Execute an action repeatedly as long as the given boolean expression
+-- | returns `true`.  The condition is evaluated before the loop body.
+-- | Collects the results into an arbitrary `Applicative` monoidal structure.
 whileM' :: forall a f m. (MonadRec m, Applicative f, Monoid (f a))
         => m Boolean -> m a -> m (f a)
 whileM' p f = tailRecM (liftIfM p (_ <+> f) done) mempty
 
+-- | Execute an action repeatedly as long as the given boolean expression
+-- | returns `true`.  The condition is evaluated before the loop body.
+-- | Ignores the results of loop body execution.
 whileM_ :: forall a m. MonadRec m => m Boolean -> m a -> m Unit
 whileM_ p f = tailRecM (liftIfM p ((f $> _) <<< Loop) done) unit
 
+-- | Execute an action repeatedly until the condition expression returns `true`.
+-- | The condition is evaluated after the loop body.
+-- | Collects results into an `Array`.
 untilM :: forall a m. MonadRec m => m a -> m Boolean -> m (Array a)
 untilM = untilM'
 
+-- | Execute an action repeatedly until the condition expression returns `true`.
+-- | The condition is evaluated after the loop body.
+-- | Collects results into an arbitrary `Applicative` semigroupoid structure.
 untilM' :: forall a f m. (MonadRec m, Applicative f, Semigroup (f a))
          => m a -> m Boolean -> m (f a)
 untilM' f p = f >>= tailRecM (liftIfM p done (_ <+> f)) <<< pure
 
+-- | Execute an action repeatedly until the condition expression returns `true`.
+-- | The condition is evaluated after the loop body.
+-- | Ignores the results of loop body execution.
 untilM_ :: forall a m. MonadRec m => m a -> m Boolean -> m Unit
 untilM_ f p = f *> tailRecM (liftIfM p done $ (f $> _) <<< Loop) unit
 
@@ -44,15 +63,15 @@ untilM_ f p = f *> tailRecM (liftIfM p done $ (f $> _) <<< Loop) unit
 iterateWhile :: forall a m. MonadRec m => (a -> Boolean) -> m a -> m a
 iterateWhile p = iterateUntil $ not p
 
--- | Yields the result of applying f until p holds.
-iterateUntilM :: forall a m. MonadRec m
-              => (a -> Boolean) -> (a -> m a) -> a -> m a
-iterateUntilM p f = tailRecM \ v -> if p v then done v else Loop <$> f v
-
 -- | Execute an action repeatedly until its result satisfies a predicate,
 -- | and return that result (discarding all others).
 iterateUntil :: forall a m. MonadRec m => (a -> Boolean) -> m a -> m a
 iterateUntil p x = x >>= iterateUntilM p (const x)
+
+-- | Yields the result of applying f until p holds.
+iterateUntilM :: forall a m. MonadRec m
+              => (a -> Boolean) -> (a -> m a) -> a -> m a
+iterateUntilM p f = tailRecM \ v -> if p v then done v else Loop <$> f v
 
 -- | As long as the supplied "Maybe" expression returns "Just _", the loop
 -- | body will be called and passed the value contained in the 'Just'.  Results

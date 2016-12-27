@@ -35,7 +35,7 @@ whileM' p f = ifM p
 
 -- | Execute an action repeatedly as long as the given boolean expression
 -- | returns `true`.  The condition is evaluated before the loop body.
--- | Results are ignored.
+-- | Ignores the results of loop body execution.
 whileM_ :: forall a m. Monad m => m Boolean -> m a -> m Unit
 whileM_ p f = ifM p (f *> whileM_ p f) (pure unit)
 
@@ -48,6 +48,8 @@ untilM = untilM'
 -- | Execute an action repeatedly until the condition expression returns `true`.
 -- | The condition is evaluated after the loop body.
 -- | Collects results into an arbitrary `Applicative` monoidal structure.
+-- | For an `Applicative` semigroupoid result, see
+-- | `Control.Monad.Rec.Loops.untilM'`.
 untilM' :: forall m f a. (Monad m, Applicative f, Monoid (f a))
         => m a -> m Boolean -> m (f a)
 untilM' f p = f >>= \ x -> whileM' (not <$> p) f >>= pure <<< (pure x <> _)
