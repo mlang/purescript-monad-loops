@@ -7,18 +7,15 @@ import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except (runExcept)
 import Control.Monad.Loops as M
 
-import Data.Either (Either(Left))
+import Data.Either (Either(Left), isLeft)
 import Data.Maybe (Maybe)
 
 import Test.Assert               ( ASSERT, assert )
 
 main :: Eff (assert :: ASSERT) Unit
 main = do
-  assert $ issue1 == Left ""
+  issue1
 
  where
 
-  issue1 :: Either String (Maybe Int)
-  issue1 = runExcept (M.untilJust p) where
-    p = throwError ""
-
+  issue1 = assert $ isLeft $ runExcept $ M.untilJust $ throwError unit
