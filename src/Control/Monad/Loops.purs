@@ -98,7 +98,7 @@ whileJust_ p f = p >>= maybe (pure unit) (\ v -> f v *> whileJust_ p f)
 -- | Run the supplied Maybe computation repeatedly until it returns a
 -- | value.  Returns that value.
 untilJust :: forall a m. Monad m => m (Maybe a) -> m a
-untilJust m = m >>= maybe (untilJust m) pure
+untilJust m = m >>= \ x -> maybe (untilJust m) pure x
 
 -- | The supplied Maybe expression will be repeatedly called until it
 -- | returns `Nothing`.  All values returned are collected into an `Array`.
