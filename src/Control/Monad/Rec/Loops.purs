@@ -29,7 +29,7 @@ whileM = whileM'
 -- | Execute an action repeatedly as long as the given boolean expression
 -- | returns `true`.  The condition is evaluated before the loop body.
 -- | Collects the results into an arbitrary `Applicative` monoidal structure.
-whileM' :: forall a f m. (MonadRec m, Applicative f, Monoid (f a))
+whileM' :: forall a f m. MonadRec m => Applicative f => Monoid (f a)
         => m Boolean -> m a -> m (f a)
 whileM' p f = tailRecM (liftIfM p (_ <+> f) done) mempty
 
@@ -48,7 +48,7 @@ untilM = untilM'
 -- | Execute an action repeatedly until the condition expression returns `true`.
 -- | The condition is evaluated after the loop body.
 -- | Collects results into an arbitrary `Applicative` semigroupoid structure.
-untilM' :: forall a f m. (MonadRec m, Applicative f, Semigroup (f a))
+untilM' :: forall a f m. MonadRec m => Applicative f => Semigroup (f a)
          => m a -> m Boolean -> m (f a)
 untilM' f p = f >>= tailRecM (liftIfM p done (_ <+> f)) <<< pure
 
@@ -82,7 +82,7 @@ whileJust = whileJust'
 -- | As long as the supplied "Maybe" expression returns "Just _", the loop
 -- | body will be called and passed the value contained in the 'Just'.  Results
 -- | are collected into an arbitrary MonadPlus container.
-whileJust' :: forall a b f m. (MonadRec m, Applicative f, Monoid (f b))
+whileJust' :: forall a b f m. MonadRec m => Applicative f => Monoid (f b)
            => m (Maybe a) -> (a -> m b) -> m (f b)
 whileJust' p f = tailRecM go mempty where
   go xs = p >>= maybe (done xs) ((xs <+> _) <<< f)
@@ -106,7 +106,7 @@ unfoldM = unfoldM'
 
 -- | The supplied Maybe expression will be repeatedly called until it
 -- | returns Nothing.  All values returned are collected into an Applicative Monoid.
-unfoldM' :: forall a f m. (MonadRec m, Applicative f, Monoid (f a))
+unfoldM' :: forall a f m. MonadRec m => Applicative f => Monoid (f a)
          => m (Maybe a) -> m (f a)
 unfoldM' = flip whileJust' pure
 
@@ -122,7 +122,7 @@ unfoldrM = unfoldrM'
 -- | See 'Data.List.unfoldr'.  This is a monad-friendly version of that, with a
 -- | twist.  Rather than returning a list, it returns any MonadPlus type of your
 -- | choice.
-unfoldrM' :: forall a b f m. (MonadRec m, Applicative f, Monoid (f b))
+unfoldrM' :: forall a b f m. MonadRec m => Applicative f => Monoid (f b)
           => (a -> m (Maybe (Tuple b a))) -> a -> m (f b)
 unfoldrM' f = tailRecM2 go mempty where
   go xs z = bind (f z) $ maybe (done xs) $
@@ -170,13 +170,13 @@ allM p = tailRecM go where
 
 -------------------------------------------------------------------------------
 
-liftIfM :: forall m f a. (Apply f, Bind m)
+liftIfM :: forall m f a. Apply f => Bind m
         => m Boolean -> f (m a) -> f (m a) -> f (m a)
 liftIfM = lift2 <<< ifM
 
 -- | Append the result of running a monadic computation to an applicative semigroup
 -- | and return it as a loop continuation for `tailRecM`.
-appendM :: forall m f a b. (MonadRec m, Applicative f, Semigroup (f a))
+appendM :: forall m f a b. MonadRec m => Applicative f => Semigroup (f a)
         => f a -> m a -> m (Step (f a) b)
 appendM xs f = f >>= loop <<< (xs <> _) <<< pure
 
