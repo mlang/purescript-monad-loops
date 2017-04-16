@@ -27,7 +27,7 @@ whileM = whileM'
 -- | Execute an action repeatedly as long as the given boolean expression
 -- | returns `true`.  The condition is evaluated before the loop body.
 -- | Collects the results into an arbitrary `Applicative` monoidal structure.
-whileM' :: forall m f a. (Monad m, Applicative f, Monoid (f a))
+whileM' :: forall m f a. Monad m => Applicative f => Monoid (f a)
         => m Boolean -> m a -> m (f a)
 whileM' p f = ifM p
   (f >>= \ x -> whileM' p f >>= pure <<< (pure x <> _))
@@ -50,7 +50,7 @@ untilM = untilM'
 -- | Collects results into an arbitrary `Applicative` monoidal structure.
 -- | For an `Applicative` semigroupoid result, see
 -- | `Control.Monad.Rec.Loops.untilM'`.
-untilM' :: forall m f a. (Monad m, Applicative f, Monoid (f a))
+untilM' :: forall m f a. Monad m => Applicative f => Monoid (f a)
         => m a -> m Boolean -> m (f a)
 untilM' f p = f >>= \ x -> whileM' (not <$> p) f >>= pure <<< (pure x <> _)
 
@@ -83,7 +83,7 @@ whileJust = whileJust'
 -- | As long as the supplied `Maybe` expression returns `Just`, the loop
 -- | body will be called and passed the value contained in the `Just`.
 -- | Results are collected into an arbitrary `Applicative` monoidal structure.
-whileJust' :: forall m a f b. (Monad m, Applicative f, Monoid (f b))
+whileJust' :: forall m a f b. Monad m => Applicative f => Monoid (f b)
            => m (Maybe a) -> (a -> m b) -> m (f b)
 whileJust' p f =
   p >>= maybe (pure mempty)
@@ -108,7 +108,7 @@ unfoldM = unfoldM'
 -- | The supplied `Maybe` expression will be repeatedly called until it
 -- | returns `Nothing`.
 -- | All `Just` values are collected into an `Applicative` monoidal structure.
-unfoldM' :: forall m f a. (Monad m, Applicative f, Monoid (f a))
+unfoldM' :: forall m f a. Monad m => Applicative f => Monoid (f a)
          => m (Maybe a) -> m (f a)
 unfoldM' = flip whileJust' pure
 
@@ -124,7 +124,7 @@ unfoldrM = unfoldrM'
 -- | See 'Data.List.unfoldr'.  This is a monad-friendly version of that, with a
 -- | twist.  Rather than returning a list, it returns any MonadPlus type of your
 -- | choice.
-unfoldrM' :: forall a b f m. (Monad m, Applicative f, Monoid (f b))
+unfoldrM' :: forall a b f m. Monad m => Applicative f => Monoid (f b)
           => (a -> m (Maybe (Tuple b a))) -> a -> m (f b)
 unfoldrM' f = go where
   go z = f z >>= maybe (pure mempty)
