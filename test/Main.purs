@@ -7,8 +7,7 @@ import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except (runExcept)
 import Control.Monad.Loops as M
 
-import Data.Either (Either(Left), isLeft)
-import Data.Maybe (Maybe)
+import Data.Either (isLeft)
 
 import Test.Assert               ( ASSERT, assert )
 
