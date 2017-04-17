@@ -13,8 +13,8 @@ import Data.Monoid (class Monoid, mempty)
 import Data.Tuple (Tuple(Tuple))
 import Prelude ( class Applicative, class Monad
                , Unit
-               , const, flip, ifM, not, pure, unit
-               , ($), (*>), (<$>), (<<<), (<>), (>>=)
+               , const, flip, not, pure, unit, bind
+               , ($), (<$>), (<<<), (<>), (>>=)
                )
 
 -- | Execute an action repeatedly as long as the given boolean expression
@@ -29,15 +29,18 @@ whileM = whileM'
 -- | Collects the results into an arbitrary `Applicative` monoidal structure.
 whileM' :: forall m f a. Monad m => Applicative f => Monoid (f a)
         => m Boolean -> m a -> m (f a)
-whileM' p f = ifM p
-  (f >>= \ x -> whileM' p f >>= pure <<< (pure x <> _))
-  (pure mempty)
+whileM' p f = loop mempty
+  where
+  loop acc =
+    p >>= if _
+      then f >>= \ x -> loop (pure x <> acc)
+      else pure acc
 
 -- | Execute an action repeatedly as long as the given boolean expression
 -- | returns `true`.  The condition is evaluated before the loop body.
 -- | Ignores the results of loop body execution.
 whileM_ :: forall a m. Monad m => m Boolean -> m a -> m Unit
-whileM_ p f = ifM p (f *> whileM_ p f) (pure unit)
+whileM_ p f = p >>= if _ then (f >>= \ _ -> whileM_ p f) else pure unit
 
 -- | Execute an action repeatedly until the condition expression returns `true`.
 -- | The condition is evaluated after the loop body.
@@ -52,13 +55,17 @@ untilM = untilM'
 -- | `Control.Monad.Rec.Loops.untilM'`.
 untilM' :: forall m f a. Monad m => Applicative f => Monoid (f a)
         => m a -> m Boolean -> m (f a)
-untilM' f p = f >>= \ x -> whileM' (not <$> p) f >>= pure <<< (pure x <> _)
+untilM' f p = loop mempty
+  where
+  loop acc = do
+    acc' <- (_ <> acc) <<< pure <$> f
+    p >>= if _ then pure acc' else loop acc'
 
 -- | Execute an action repeatedly until the condition expression returns `true`.
 -- | The condition is evaluated after the loop body.
 -- | Ignores the results of loop body execution.
 untilM_ :: forall m a. Monad m => m a -> m Boolean -> m Unit
-untilM_ f p = f *> whileM_ p f
+untilM_ f p = f >>= \ _ -> p >>= if _ then untilM_ f p else pure unit
 
 -- | Execute an action repeatedly until its result fails to satisfy a predicate,
 -- | and return that result (discarding all others).
@@ -93,7 +100,7 @@ whileJust' p f =
 -- | body will be called and passed the value contained in the 'Just'.  Results
 -- | are discarded.
 whileJust_ :: forall a b m. Monad m => m (Maybe a) -> (a -> m b) -> m Unit
-whileJust_ p f = p >>= maybe (pure unit) (\ v -> f v *> whileJust_ p f)
+whileJust_ p f = p >>= maybe (pure unit) (\ v -> f v >>= \ _ -> whileJust_ p f)
 
 -- | Run the supplied Maybe computation repeatedly until it returns a
 -- | value.  Returns that value.
@@ -133,33 +140,33 @@ unfoldrM' f = go where
 -- | short-circuit 'and' for monadic boolean values.
 andM :: forall m. (Monad m) => List (m Boolean) -> m Boolean
 andM Nil    = pure true
-andM (p:ps) = ifM p (andM ps) (pure false)
+andM (p:ps) = p >>= if _ then andM ps else pure false
 
 -- | short-circuit 'or' for values of type Monad m => m Bool
 orM :: forall m. Monad m => List (m Boolean) -> m Boolean
 orM Nil    = pure false
-orM (p:ps) = ifM p (pure true) (orM ps)
+orM (p:ps) = p >>= if _ then pure true else orM ps
 
 -- | short-circuit 'any' with a list of \"monadic predicates\".  Tests the
 -- | value presented against each predicate in turn until one passes, then
 -- | returns True without any further processing.  If none passes, returns False.
 anyPM :: forall m a. Monad m => List (a -> m Boolean) -> (a -> m Boolean)
 anyPM Nil    _ = pure false
-anyPM (p:ps) x = ifM (p x) (pure true) (anyPM ps x)
+anyPM (p:ps) x = p x >>= if _ then pure true else anyPM ps x
 
 -- | short-circuit 'all' with a list of \"monadic predicates\".  Tests the value
 -- | presented against each predicate in turn until one fails, then returns False.
 -- | if none fail, returns True.
 allPM :: forall m a. Monad m => List (a -> m Boolean) -> (a -> m Boolean)
 allPM Nil    _ = pure true
-allPM (p:ps) x = ifM (p x) (allPM ps x) (pure false)
+allPM (p:ps) x = p x >>= if _ then allPM ps x else pure false
 
 -- | short-circuit 'any' with a \"monadic predicate\".
 anyM :: forall a m. Monad m => (a -> m Boolean) -> List a -> m Boolean
 anyM _ Nil    = pure false
-anyM p (x:xs) = ifM (p x) (pure true) (anyM p xs)
+anyM p (x:xs) = p x >>= if _ then pure true else anyM p xs
 
 -- | short-circuit 'all' with a \"monadic predicate\".
 allM :: forall a m. Monad m => (a -> m Boolean) -> List a -> m Boolean
 allM _ Nil    = pure true
-allM p (x:xs) = ifM (p x) (allM p xs) (pure false)
+allM p (x:xs) = p x >>= if _ then allM p xs else pure false

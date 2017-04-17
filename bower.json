@@ -24,6 +24,7 @@
   "devDependencies": {
     "purescript-psci-support": "^3.0.0",
     "purescript-transformers": "^3.2.0",
-    "purescript-assert": "^3.0.0"
+    "purescript-assert": "^3.0.0",
+    "purescript-refs": "^3.0.0"
   }
 }
