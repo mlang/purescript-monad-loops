@@ -2,19 +2,17 @@ module Test.Main where
 
 import Prelude
 
-import Control.Monad.Eff (Eff)
-import Control.Monad.Eff.Ref (REF, newRef, modifyRef, readRef)
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except (runExcept)
 import Control.Monad.Loops as M
-
 import Data.Either (isLeft)
 import Data.List as L
 import Data.Unfoldable (replicate)
+import Effect (Effect)
+import Effect.Ref (new, modify, read)
+import Test.Assert(assert')
 
-import Test.Assert(ASSERT, assert')
-
-main :: Eff (assert :: ASSERT, ref :: REF) Unit
+main :: Effect Unit
 main = do
   test_whileM
   test_untilM
@@ -28,13 +26,13 @@ main = do
 
   where
   decrementToZero n = do
-    ref <- newRef n
+    ref <- new n
     pure do
-      n' <- readRef ref
+      n' <- read ref
       if n' <= 0
         then pure false
         else do
-          modifyRef ref (_ - 1)
+          modify (_ - 1) ref
           pure true
 
   trueList :: L.List Boolean
