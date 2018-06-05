@@ -14,16 +14,16 @@
     "output"
   ],
   "dependencies": {
-    "purescript-prelude": "#compiler/0.12",
-    "purescript-tailrec": "#compiler/0.12",
-    "purescript-maybe": "#compiler/0.12",
-    "purescript-tuples": "#compiler/0.12",
-    "purescript-lists": "#compiler/0.12"
+    "purescript-prelude": "^4.0.0",
+    "purescript-tailrec": "^4.0.0",
+    "purescript-maybe": "^4.0.0",
+    "purescript-tuples": "^5.0.0",
+    "purescript-lists": "^5.0.0"
   },
   "devDependencies": {
-    "purescript-psci-support": "#compiler/0.12",
-    "purescript-transformers": "#compiler/0.12",
-    "purescript-assert": "#compiler/0.12",
-    "purescript-refs": "#compiler/0.12"
+    "purescript-psci-support": "^4.0.0",
+    "purescript-transformers": "^4.1.0",
+    "purescript-assert": "^4.0.0",
+    "purescript-refs": "^4.1.0"
   }
 }

@@ -9,7 +9,7 @@ import Data.Either (isLeft)
 import Data.List as L
 import Data.Unfoldable (replicate)
 import Effect (Effect)
-import Effect.Ref (new, modify, read)
+import Effect.Ref (new, modify_, read)
 import Test.Assert(assert')
 
 main :: Effect Unit
@@ -32,7 +32,7 @@ main = do
       if n' <= 0
         then pure false
         else do
-          modify (_ - 1) ref
+          modify_ (_ - 1) ref
           pure true
 
   trueList :: L.List Boolean
